@@ -22,6 +22,10 @@ type ExploitManagerClient interface {
 	DownloadFile(ctx context.Context, in *FileInfo, opts ...grpc.CallOption) (ExploitManager_DownloadFileClient, error)
 	Exploit(ctx context.Context, in *ExploitRequest, opts ...grpc.CallOption) (*ExploitResponse, error)
 	UpdateExploit(ctx context.Context, in *UpdateExploitRequest, opts ...grpc.CallOption) (*UpdateExploitResponse, error)
+	BroadcastCommand(ctx context.Context, in *Command, opts ...grpc.CallOption) (*Empty, error)
+	BroadcastRequests(ctx context.Context, in *Empty, opts ...grpc.CallOption) (ExploitManager_BroadcastRequestsClient, error)
+	SingleRun(ctx context.Context, in *SingleRunRequest, opts ...grpc.CallOption) (*Empty, error)
+	SingleRunRequests(ctx context.Context, in *Empty, opts ...grpc.CallOption) (ExploitManager_SingleRunRequestsClient, error)
 }
 
 type exploitManagerClient struct {
@@ -34,7 +38,7 @@ func NewExploitManagerClient(cc grpc.ClientConnInterface) ExploitManagerClient {
 
 func (c *exploitManagerClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
 	out := new(PingResponse)
-	err := c.cc.Invoke(ctx, "/ExploitManager/Ping", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/neo.ExploitManager/Ping", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +46,7 @@ func (c *exploitManagerClient) Ping(ctx context.Context, in *PingRequest, opts .
 }
 
 func (c *exploitManagerClient) UploadFile(ctx context.Context, opts ...grpc.CallOption) (ExploitManager_UploadFileClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_ExploitManager_serviceDesc.Streams[0], "/ExploitManager/UploadFile", opts...)
+	stream, err := c.cc.NewStream(ctx, &_ExploitManager_serviceDesc.Streams[0], "/neo.ExploitManager/UploadFile", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +80,7 @@ func (x *exploitManagerUploadFileClient) CloseAndRecv() (*FileInfo, error) {
 }
 
 func (c *exploitManagerClient) DownloadFile(ctx context.Context, in *FileInfo, opts ...grpc.CallOption) (ExploitManager_DownloadFileClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_ExploitManager_serviceDesc.Streams[1], "/ExploitManager/DownloadFile", opts...)
+	stream, err := c.cc.NewStream(ctx, &_ExploitManager_serviceDesc.Streams[1], "/neo.ExploitManager/DownloadFile", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +113,7 @@ func (x *exploitManagerDownloadFileClient) Recv() (*FileStream, error) {
 
 func (c *exploitManagerClient) Exploit(ctx context.Context, in *ExploitRequest, opts ...grpc.CallOption) (*ExploitResponse, error) {
 	out := new(ExploitResponse)
-	err := c.cc.Invoke(ctx, "/ExploitManager/Exploit", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/neo.ExploitManager/Exploit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,11 +122,93 @@ func (c *exploitManagerClient) Exploit(ctx context.Context, in *ExploitRequest, 
 
 func (c *exploitManagerClient) UpdateExploit(ctx context.Context, in *UpdateExploitRequest, opts ...grpc.CallOption) (*UpdateExploitResponse, error) {
 	out := new(UpdateExploitResponse)
-	err := c.cc.Invoke(ctx, "/ExploitManager/UpdateExploit", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/neo.ExploitManager/UpdateExploit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+func (c *exploitManagerClient) BroadcastCommand(ctx context.Context, in *Command, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/neo.ExploitManager/BroadcastCommand", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *exploitManagerClient) BroadcastRequests(ctx context.Context, in *Empty, opts ...grpc.CallOption) (ExploitManager_BroadcastRequestsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_ExploitManager_serviceDesc.Streams[2], "/neo.ExploitManager/BroadcastRequests", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &exploitManagerBroadcastRequestsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ExploitManager_BroadcastRequestsClient interface {
+	Recv() (*Command, error)
+	grpc.ClientStream
+}
+
+type exploitManagerBroadcastRequestsClient struct {
+	grpc.ClientStream
+}
+
+func (x *exploitManagerBroadcastRequestsClient) Recv() (*Command, error) {
+	m := new(Command)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *exploitManagerClient) SingleRun(ctx context.Context, in *SingleRunRequest, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/neo.ExploitManager/SingleRun", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *exploitManagerClient) SingleRunRequests(ctx context.Context, in *Empty, opts ...grpc.CallOption) (ExploitManager_SingleRunRequestsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_ExploitManager_serviceDesc.Streams[3], "/neo.ExploitManager/SingleRunRequests", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &exploitManagerSingleRunRequestsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ExploitManager_SingleRunRequestsClient interface {
+	Recv() (*SingleRunRequest, error)
+	grpc.ClientStream
+}
+
+type exploitManagerSingleRunRequestsClient struct {
+	grpc.ClientStream
+}
+
+func (x *exploitManagerSingleRunRequestsClient) Recv() (*SingleRunRequest, error) {
+	m := new(SingleRunRequest)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // ExploitManagerServer is the server API for ExploitManager service.
@@ -134,6 +220,10 @@ type ExploitManagerServer interface {
 	DownloadFile(*FileInfo, ExploitManager_DownloadFileServer) error
 	Exploit(context.Context, *ExploitRequest) (*ExploitResponse, error)
 	UpdateExploit(context.Context, *UpdateExploitRequest) (*UpdateExploitResponse, error)
+	BroadcastCommand(context.Context, *Command) (*Empty, error)
+	BroadcastRequests(*Empty, ExploitManager_BroadcastRequestsServer) error
+	SingleRun(context.Context, *SingleRunRequest) (*Empty, error)
+	SingleRunRequests(*Empty, ExploitManager_SingleRunRequestsServer) error
 	mustEmbedUnimplementedExploitManagerServer()
 }
 
@@ -155,6 +245,18 @@ func (UnimplementedExploitManagerServer) Exploit(context.Context, *ExploitReques
 }
 func (UnimplementedExploitManagerServer) UpdateExploit(context.Context, *UpdateExploitRequest) (*UpdateExploitResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateExploit not implemented")
+}
+func (UnimplementedExploitManagerServer) BroadcastCommand(context.Context, *Command) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BroadcastCommand not implemented")
+}
+func (UnimplementedExploitManagerServer) BroadcastRequests(*Empty, ExploitManager_BroadcastRequestsServer) error {
+	return status.Errorf(codes.Unimplemented, "method BroadcastRequests not implemented")
+}
+func (UnimplementedExploitManagerServer) SingleRun(context.Context, *SingleRunRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SingleRun not implemented")
+}
+func (UnimplementedExploitManagerServer) SingleRunRequests(*Empty, ExploitManager_SingleRunRequestsServer) error {
+	return status.Errorf(codes.Unimplemented, "method SingleRunRequests not implemented")
 }
 func (UnimplementedExploitManagerServer) mustEmbedUnimplementedExploitManagerServer() {}
 
@@ -179,7 +281,7 @@ func _ExploitManager_Ping_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ExploitManager/Ping",
+		FullMethod: "/neo.ExploitManager/Ping",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ExploitManagerServer).Ping(ctx, req.(*PingRequest))
@@ -244,7 +346,7 @@ func _ExploitManager_Exploit_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ExploitManager/Exploit",
+		FullMethod: "/neo.ExploitManager/Exploit",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ExploitManagerServer).Exploit(ctx, req.(*ExploitRequest))
@@ -262,7 +364,7 @@ func _ExploitManager_UpdateExploit_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ExploitManager/UpdateExploit",
+		FullMethod: "/neo.ExploitManager/UpdateExploit",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ExploitManagerServer).UpdateExploit(ctx, req.(*UpdateExploitRequest))
@@ -270,8 +372,86 @@ func _ExploitManager_UpdateExploit_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ExploitManager_BroadcastCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Command)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExploitManagerServer).BroadcastCommand(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/neo.ExploitManager/BroadcastCommand",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExploitManagerServer).BroadcastCommand(ctx, req.(*Command))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ExploitManager_BroadcastRequests_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ExploitManagerServer).BroadcastRequests(m, &exploitManagerBroadcastRequestsServer{stream})
+}
+
+type ExploitManager_BroadcastRequestsServer interface {
+	Send(*Command) error
+	grpc.ServerStream
+}
+
+type exploitManagerBroadcastRequestsServer struct {
+	grpc.ServerStream
+}
+
+func (x *exploitManagerBroadcastRequestsServer) Send(m *Command) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _ExploitManager_SingleRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SingleRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExploitManagerServer).SingleRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/neo.ExploitManager/SingleRun",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExploitManagerServer).SingleRun(ctx, req.(*SingleRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ExploitManager_SingleRunRequests_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ExploitManagerServer).SingleRunRequests(m, &exploitManagerSingleRunRequestsServer{stream})
+}
+
+type ExploitManager_SingleRunRequestsServer interface {
+	Send(*SingleRunRequest) error
+	grpc.ServerStream
+}
+
+type exploitManagerSingleRunRequestsServer struct {
+	grpc.ServerStream
+}
+
+func (x *exploitManagerSingleRunRequestsServer) Send(m *SingleRunRequest) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 var _ExploitManager_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "ExploitManager",
+	ServiceName: "neo.ExploitManager",
 	HandlerType: (*ExploitManagerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -286,6 +466,14 @@ var _ExploitManager_serviceDesc = grpc.ServiceDesc{
 			MethodName: "UpdateExploit",
 			Handler:    _ExploitManager_UpdateExploit_Handler,
 		},
+		{
+			MethodName: "BroadcastCommand",
+			Handler:    _ExploitManager_BroadcastCommand_Handler,
+		},
+		{
+			MethodName: "SingleRun",
+			Handler:    _ExploitManager_SingleRun_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -296,6 +484,16 @@ var _ExploitManager_serviceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "DownloadFile",
 			Handler:       _ExploitManager_DownloadFile_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "BroadcastRequests",
+			Handler:       _ExploitManager_BroadcastRequests_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SingleRunRequests",
+			Handler:       _ExploitManager_SingleRunRequests_Handler,
 			ServerStreams: true,
 		},
 	},

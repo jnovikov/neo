@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"runtime"
+
 	"neo/cmd/client/cli"
 	"neo/internal/client"
 
@@ -25,5 +27,5 @@ var runCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().IntP("jobs", "j", 0, "maximum exploit jobs to run concurrently")
+	runCmd.Flags().IntP("jobs", "j", runtime.NumCPU()*cli.JobsPerCPU, "exploit jobs multiplier")
 }

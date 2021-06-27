@@ -55,7 +55,7 @@ func TestHostBucket_Add(t *testing.T) {
 }
 
 func TestHostBucket_Add_Distribution(t *testing.T) {
-	populate := func(ipCount, idCount int, weightMax int) *HostBucket {
+	populate := func(idCount int, weightMax int) *HostBucket {
 		teams := make(map[string]string)
 		for id := range teams {
 			teams[id] = testutils.RandomIP()
@@ -66,7 +66,7 @@ func TestHostBucket_Add_Distribution(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Could not get machine id: %v", err)
 		}
-		for i := 0; i < idCount; i += 1 {
+		for i := 0; i < idCount; i++ {
 			id := testutils.RandomString(len(mid))
 			w := testutils.RandomInt(1, weightMax+1)
 			hb.AddNode(id, w)
@@ -103,8 +103,8 @@ func TestHostBucket_Add_Distribution(t *testing.T) {
 		},
 	} {
 		meanStdDev := 0.0
-		for i := 0; i < tc.runs; i += 1 {
-			b := populate(tc.ipCount, tc.idCount, tc.weightMax)
+		for i := 0; i < tc.runs; i++ {
+			b := populate(tc.idCount, tc.weightMax)
 			sizes := make([]float64, tc.idCount)
 			meanSize := 0.0
 			for i := range sizes {
@@ -159,7 +159,7 @@ func TestHostBucket_Balancing(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Could not get machine id: %v", err)
 		}
-		for i := 0; i < idCount; i += 1 {
+		for i := 0; i < idCount; i++ {
 			id := testutils.RandomString(len(mid))
 			hb.AddNode(id, 1)
 		}
@@ -204,7 +204,7 @@ func TestHostBucket_Balancing(t *testing.T) {
 				teams := b.buck[n.id].GetTeams()
 				for _, ip := range teams {
 					if n.id != beforeByIP[ip] {
-						cntMoved += 1
+						cntMoved++
 					}
 					beforeByIP[ip] = n.id
 				}
@@ -212,7 +212,7 @@ func TestHostBucket_Balancing(t *testing.T) {
 			return cntMoved
 		}
 
-		for i := 0; i < tc.cntDelete; i += 1 {
+		for i := 0; i < tc.cntDelete; i++ {
 			toDelete := testutils.RandomInt(0, tc.idCount)
 			b.DeleteNode(b.nodes[toDelete].id)
 		}
@@ -226,7 +226,7 @@ func TestHostBucket_Balancing(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Could not get machine id: %v", err)
 		}
-		for i := 0; i < tc.cntAdd; i += 1 {
+		for i := 0; i < tc.cntAdd; i++ {
 			id := testutils.RandomString(len(mid))
 			b.AddNode(id, 1)
 		}

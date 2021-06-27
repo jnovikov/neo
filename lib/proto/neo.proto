@@ -1,4 +1,7 @@
 syntax = "proto3";
+package neo;
+
+option go_package = "github.com/pomo-mondreganto/neo";
 
 message TeamBucket {
   map<string, string> teams = 1;
@@ -8,20 +11,29 @@ message FileInfo {
   string uuid = 1;
 }
 
+message ExploitConfiguration {
+  string entrypoint = 1;
+  bool is_archive = 2;
+  string run_every = 3;
+  string timeout = 4;
+}
+
 message ExploitState {
   string exploit_id = 1;
   int64 version = 2;
   FileInfo file = 3;
+  bool disabled = 4;
+  bool endless = 5;
+  ExploitConfiguration config = 6;
 }
 
 message Config {
-  string run_every = 1;
-  string timeout = 2;
-  string farm_url = 3;
-  string farm_password = 4;
-  string flag_regexp = 5;
-  string ping_every = 6;
-  repeated string environ = 7;
+  string farm_url = 1;
+  string farm_password = 2;
+  string flag_regexp = 3;
+  string ping_every = 4;
+  string submit_every = 5;
+  repeated string environ = 6;
 }
 
 message ServerState {
@@ -29,11 +41,6 @@ message ServerState {
   map<string, TeamBucket> client_team_map = 1;
   repeated ExploitState exploits = 2;
   Config config = 3;
-}
-
-message ExploitConfiguration {
-  string entrypoint = 1;
-  bool is_archive = 2;
 }
 
 message FileStream {
@@ -62,23 +69,38 @@ message ExploitRequest {
 
 message ExploitResponse {
   ExploitState state = 1;
-  ExploitConfiguration config = 2;
 }
 
 message UpdateExploitRequest {
-  string exploit_id = 1;
-  FileInfo file = 2;
-  ExploitConfiguration config = 3;
+  ExploitState state = 1;
 }
 
 message UpdateExploitResponse {
   ExploitState state = 1;
 }
 
+message SingleRunRequest {
+  string exploit_id = 1;
+}
+
+message Command {
+  string command = 1;
+}
+
+message Empty {}
+
 service ExploitManager {
   rpc Ping (PingRequest) returns (PingResponse) {}
+
   rpc UploadFile(stream FileStream) returns (FileInfo) {}
   rpc DownloadFile(FileInfo) returns (stream FileStream) {}
+
   rpc Exploit(ExploitRequest)  returns (ExploitResponse) {}
   rpc UpdateExploit(UpdateExploitRequest) returns (UpdateExploitResponse) {}
+
+  rpc BroadcastCommand(Command) returns (Empty) {}
+  rpc BroadcastRequests(Empty) returns (stream Command) {}
+
+  rpc SingleRun(SingleRunRequest) returns (Empty) {}
+  rpc SingleRunRequests(Empty) returns (stream SingleRunRequest) {}
 }

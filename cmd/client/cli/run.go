@@ -11,22 +11,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const JobsPerCPU = 5
+
 type runCLI struct {
 	*baseCLI
 	run *exploit.Runner
 }
 
-func NewRun(cmd *cobra.Command, _ []string, cfg *client.Config) *runCLI {
+func NewRun(cmd *cobra.Command, _ []string, cfg *client.Config) NeoCLI {
 	jobs, err := cmd.Flags().GetInt("jobs")
 	if err != nil {
 		logrus.Fatalf("Could not get jobs number: %v", err)
 	}
 	if jobs == 0 {
-		jobs = runtime.NumCPU()
+		jobs = runtime.NumCPU() * JobsPerCPU
 	}
 	if jobs <= 0 {
 		logrus.Fatal("run: job count should be positive")
 	}
+
 	cli := &runCLI{
 		baseCLI: &baseCLI{c: cfg},
 	}
@@ -42,5 +45,5 @@ func NewRun(cmd *cobra.Command, _ []string, cfg *client.Config) *runCLI {
 }
 
 func (rc *runCLI) Run(ctx context.Context) error {
-	return rc.run.Run(ctx)
+	return rc.run.Run(ctx) // nolint:wrapcheck
 }

@@ -1,6 +1,8 @@
 package filestream
 
 import (
+	"errors"
+	"fmt"
 	"io"
 
 	neopb "neo/lib/genproto/neo"
@@ -21,14 +23,14 @@ type UploadStream interface {
 func Save(stream DownloadStream, out io.Writer) error {
 	for {
 		in, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("reading from stream: %w", err)
 		}
 		if _, err := out.Write(in.GetChunk()); err != nil {
-			return err
+			return fmt.Errorf("writing stream content chunk: %w", err)
 		}
 	}
 }
@@ -37,14 +39,14 @@ func Load(in io.Reader, stream UploadStream) error {
 	b := make([]byte, chunkSize)
 	for {
 		n, err := in.Read(b)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("reading content: %w", err)
 		}
 		if err := stream.Send(&neopb.FileStream{Chunk: b[:n]}); err != nil {
-			return err
+			return fmt.Errorf("sending chunk to stream: %w", err)
 		}
 	}
 }

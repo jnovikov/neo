@@ -1,19 +1,12 @@
 before:
   hooks:
     - go mod tidy
+    - go mod download
+
 builds:
   - id: "neo_client"
     main: "./cmd/client"
-    binary: "./neo_client/neo"
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-  - id: "neo_server"
-    main: "./cmd/server"
-    binary: "./neo_server/neo_server"
+    binary: "./neo"
     env:
       - CGO_ENABLED=0
     goos:
@@ -21,59 +14,84 @@ builds:
       - linux
     goarch:
       - amd64
+
+  - id: "dummy"
+    main: "./cmd/client"
+    binary: "neo"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    hooks:
+      post:
+        - "mv neo_client_docker neo_{{ .Version }}"
+        - "zip -r neo_{{ .Version }}.zip neo_{{ .Version }}"
+        - "rm -rf neo_{{ .Version }}"
+        - "mkdir dist/other"
+        - "mv neo_{{ .Version }}.zip dist/other/"
+        - "ls -lh dist/other/neo_{{ .Version }}.zip"
+
+  - id: "neo_server"
+    main: "./cmd/server"
+    binary: "./neo_server"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+
 archives:
-  - format: zip
+  - id: "client"
+    format: zip
+    builds:
+      - "neo_client"
+    name_template: "{{ .ProjectName }}_client_{{ .Version }}_{{ .Os }}"
+    wrap_in_directory: "{{ .ProjectName }}_client_{{ .Version }}_{{ .Os }}"
     replacements:
-      darwin: MacOs
-      linux: Linux
-      windows: Windows
+      darwin: macOS
       386: i386
       amd64: x64
     format_overrides:
       - goos: linux
         format: tar.gz
     files:
-      - README*.md
-      - configs/client/config.yml
-      - configs/server/config.yml
+      - README.md
+      - client_config.yml
+      - exploits/.keep
 
-  - id: client
-    format: zip
-    builds:
-      - "neo_client"
-    name_template: "{{ .ProjectName }}_client_{{ .Version }}"
-    replacements:
-      darwin: MacOs
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x64
-    files:
-      - README.MD
-      - neo_client/config.yml
-      - neo_client/*
-  - id: server
+  - id: "server"
     format: zip
     builds:
       - "neo_server"
     name_template: "{{ .ProjectName }}_server_{{ .Version }}_{{ .Os }}"
+    wrap_in_directory: "{{ .ProjectName }}_server_{{ .Version }}_{{ .Os }}"
     replacements:
-      darwin: MacOs
-      linux: Linux
-      windows: Windows
+      darwin: macOS
       386: i386
       amd64: x64
     format_overrides:
       - goos: linux
         format: tar.gz
     files:
-      - README.MD
-      - neo_server/config.yml
-      - neo_server/data/.keep
+      - README.md
+      - data/.keep
+      - server_config.yml
+
+release:
+  prerelease: auto
+  name_template: "{{.ProjectName}}-{{.Version}}"
+  extra_files:
+    - glob: "./dist/other/*"
+
 checksum:
   name_template: 'checksums.txt'
 snapshot:
   name_template: "{{ .Tag }}-next"
+
 changelog:
   sort: asc
   filters:

@@ -1,4 +1,4 @@
-package grpc_auth
+package grpcauth
 
 import (
 	"context"
@@ -43,11 +43,9 @@ func (ti *ServerTokenInterceptor) Unary() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-
 		if err := ti.authorize(ctx, info.FullMethod); err != nil {
 			return nil, err
 		}
-
 		return handler(ctx, req)
 	}
 }
@@ -87,9 +85,7 @@ func (interceptor *ClientTokenInterceptor) Unary() grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-
 		return invoker(interceptor.attachToken(ctx), method, req, reply, cc, opts...)
-
 	}
 }
 

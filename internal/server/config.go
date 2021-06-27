@@ -10,7 +10,10 @@ import (
 )
 
 func ReadConfig(data []byte, cfg *Config) error {
-	return yaml.Unmarshal(data, cfg)
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return fmt.Errorf("unmarshalling yaml: %w", err)
+	}
+	return nil
 }
 
 type Config struct {
@@ -18,21 +21,20 @@ type Config struct {
 	DBPath      string            `yaml:"db_path"`
 	BaseDir     string            `yaml:"base_dir"`
 	PingEvery   time.Duration     `yaml:"ping_every"`
-	RunEvery    time.Duration     `yaml:"run_every"`
-	Timeout     time.Duration     `yaml:"timeout"`
+	SubmitEvery time.Duration     `yaml:"submit_every"`
 	FarmConfig  FarmConfig        `yaml:"farm"`
 	GrpcAuthKey string            `yaml:"grpc_auth_key"`
 	Environ     map[string]string `yaml:"env"`
 }
 
 type FarmConfig struct {
-	Url        string            `yaml:"url"`
+	URL        string            `yaml:"url"`
 	Password   string            `yaml:"password"`
 	FlagRegexp string            `json:"FLAG_FORMAT"`
 	Teams      map[string]string `json:"TEAMS"`
 }
 
-func (cfg *FarmConfig) ParseJson(r io.Reader) error {
+func (cfg *FarmConfig) ParseJSON(r io.Reader) error {
 	dec := json.NewDecoder(r)
 	if err := dec.Decode(cfg); err != nil {
 		return fmt.Errorf("decoding json: %w", err)

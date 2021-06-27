@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
 
 	"neo/internal/server"
-	"neo/pkg/grpc_auth"
+	"neo/pkg/grpcauth"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
@@ -19,21 +20,24 @@ import (
 )
 
 var (
-	configFile = pflag.String("config", "config.yml", "yaml config file to read")
+	configFile = pflag.StringP("config", "c", "client_config.yml", "yaml config file")
 )
 
 func load(path string, cfg *server.Config) error {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("reading file %s: %w", path, err)
 	}
-	return server.ReadConfig(data, cfg)
+	if err := server.ReadConfig(data, cfg); err != nil {
+		return fmt.Errorf("reading config: %w", err)
+	}
+	return nil
 }
 
 func watchConfig(ctx context.Context, srv *server.ExploitManagerServer) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating file watcher: %w", err)
 	}
 	go func() {
 		for {
@@ -58,7 +62,10 @@ func watchConfig(ctx context.Context, srv *server.ExploitManagerServer) error {
 			}
 		}
 	}()
-	return watcher.Add(*configFile)
+	if err := watcher.Add(*configFile); err != nil {
+		return fmt.Errorf("adding watched file %s: %w", *configFile, err)
+	}
+	return nil
 }
 
 func main() {
@@ -68,8 +75,9 @@ func main() {
 		logrus.Fatalf("Failed to read config: %v", err)
 	}
 
+	ctx := context.Background()
 	fc := server.NewFarmClient(cfg.FarmConfig)
-	if err := fc.FillConfig(&cfg.FarmConfig); err != nil {
+	if err := fc.FillConfig(ctx, &cfg.FarmConfig); err != nil {
 		logrus.Fatalf("Failed to fetch config from farm: %v", err)
 	}
 
@@ -77,14 +85,8 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("Failed to create bolt storage: %v", err)
 	}
-	if cfg.RunEvery <= 0 {
-		logrus.Fatalf("run_every should be positive")
-	}
 	if cfg.PingEvery <= 0 {
 		logrus.Fatalf("ping_every should be positive")
-	}
-	if cfg.Timeout <= 0 {
-		logrus.Fatalf("timeout should be positive")
 	}
 	logrus.Infof("Config: %+v", cfg)
 	srv := server.New(cfg, st)
@@ -94,7 +96,7 @@ func main() {
 	}
 	var opts []grpc.ServerOption
 	if cfg.GrpcAuthKey != "" {
-		authInterceptor := grpc_auth.NewServerInterceptor(cfg.GrpcAuthKey)
+		authInterceptor := grpcauth.NewServerInterceptor(cfg.GrpcAuthKey)
 		opts = append(opts, grpc.UnaryInterceptor(authInterceptor.Unary()))
 		opts = append(opts, grpc.StreamInterceptor(authInterceptor.Stream()))
 	}
@@ -112,6 +114,7 @@ func main() {
 	go srv.HeartBeat(ctx)
 	go func() {
 		<-c
+		logrus.Info("Received shutdown signal, stopping server")
 		cancel()
 		s.GracefulStop()
 	}()

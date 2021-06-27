@@ -1,0 +1,38 @@
+run:
+  skip-dirs:
+    - pkg/apps/.*
+
+linters:
+  enable:
+    - asciicheck
+    - bodyclose
+    - dogsled
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - goimports
+    - ifshort
+    - misspell
+    - noctx
+    - prealloc
+    - predeclared
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - whitespace
+    - wrapcheck
+
+linters-settings:
+  unparam:
+    check-exported: false
+  unused:
+    check-exported: false
+
+issues:
+  exclude-use-default: false
+  max-same-issues: 0
+  exclude-rules:
+    - source: "status\\.Errorf"
+      linters:
+        - wrapcheck

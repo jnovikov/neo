@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 	"time"
 )
 
@@ -50,4 +53,15 @@ func RandomIP() string {
 		return RandomInt(0, 256)
 	}
 	return fmt.Sprintf("%d.%d.%d.%d", gen(), gen(), gen(), gen())
+}
+
+type HTTPRequestChecker func(*testing.T, *http.Request)
+
+func NewCheckedTestServer(t *testing.T, checker HTTPRequestChecker) *httptest.Server {
+	t.Helper()
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		checker(t, r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	return s
 }

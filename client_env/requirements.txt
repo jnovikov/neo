@@ -1,7 +1,13 @@
+bs4
 checklib
+dnslib
 eventlet
 flask
 gevent
+gmpy2
+hashpumpy
+lxml
+numpy
 psycopg2-binary
 pwntools
 pycryptodome
@@ -10,7 +16,9 @@ PyMySQL
 pyopenssl
 python-socketio[asyncio_client]
 python-socketio[client]
+sympy
 redis
+regex
 requests
 websockets
 z3-solver

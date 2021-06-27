@@ -1,4 +1,4 @@
-package exploit
+package queue
 
 type Output struct {
 	Name string

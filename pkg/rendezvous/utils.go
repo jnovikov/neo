@@ -4,8 +4,8 @@ import "math"
 
 const maxUInt64 = float64(^uint64(0))
 
-func combineKey(nodeId, value string) string {
-	return nodeId + ":" + value
+func combineKey(nodeID, value string) string {
+	return nodeID + ":" + value
 }
 
 func weightHash(hash uint64, weight int) float64 {

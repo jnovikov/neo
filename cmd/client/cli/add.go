@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"neo/internal/client"
 	"neo/pkg/archive"
@@ -26,23 +28,34 @@ type addCLI struct {
 	path      string
 	isArchive bool
 	exploitID string
+	runEvery  time.Duration
+	timeout   time.Duration
+	endless   bool
 }
 
-func NewAdd(cmd *cobra.Command, args []string, cfg *client.Config) *addCLI {
-	eid, err := cmd.Flags().GetString("id")
-	if err != nil {
-		logrus.Fatalf("Could not get exploit id")
+func NewAdd(cmd *cobra.Command, args []string, cfg *client.Config) NeoCLI {
+	c := &addCLI{
+		baseCLI: &baseCLI{cfg},
+		path:    args[0],
 	}
-	isDir, err := cmd.Flags().GetBool("dir")
-	if err != nil {
-		logrus.Fatalf("Could not get dir param")
+
+	var err error
+	if c.exploitID, err = cmd.Flags().GetString("id"); err != nil {
+		logrus.Fatalf("Could not get exploit id: %v", err)
 	}
-	return &addCLI{
-		baseCLI:   &baseCLI{cfg},
-		path:      args[0],
-		isArchive: isDir,
-		exploitID: eid,
+	if c.isArchive, err = cmd.Flags().GetBool("dir"); err != nil {
+		logrus.Fatalf("Could not get parse directory: %v", err)
 	}
+	if c.runEvery, err = cmd.Flags().GetDuration("interval"); err != nil {
+		logrus.Fatalf("Could not parse run interval: %v", err)
+	}
+	if c.timeout, err = cmd.Flags().GetDuration("timeout"); err != nil {
+		logrus.Fatalf("Could not parse run timeout: %v", err)
+	}
+	if c.endless, err = cmd.Flags().GetBool("endless"); err != nil {
+		logrus.Fatalf("Could not parse endless: %v", err)
+	}
+	return c
 }
 
 func (ac *addCLI) Run(ctx context.Context) error {
@@ -128,17 +141,23 @@ func (ac *addCLI) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to upload exploit file: %w", err)
 	}
 
-	req := &neopb.UpdateExploitRequest{
+	exState := &neopb.ExploitState{
 		ExploitId: ac.exploitID,
 		File:      fileInfo,
 		Config: &neopb.ExploitConfiguration{
 			Entrypoint: file,
 			IsArchive:  ac.isArchive,
+			RunEvery:   ac.runEvery.String(),
+			Timeout:    ac.timeout.String(),
 		},
+		Endless:  ac.endless,
+		Disabled: false,
 	}
-	if err := c.UpdateExploit(ctx, req); err != nil {
+	newState, err := c.UpdateExploit(ctx, exState)
+	if err != nil {
 		return fmt.Errorf("failed to update exploit: %w", err)
 	}
+	logrus.Infof("Updated exploit state: %v", newState)
 	return nil
 }
 
@@ -148,14 +167,23 @@ func (ac *addCLI) validateEntry(f string) (errors []string) {
 		errors = append(errors, err.Error())
 		return
 	}
-	if string(data[:2]) != "#!" {
-		errors = append(errors,
-			fmt.Sprintf("Please use shebang (e.g. %s) as the first line of your script",
-				"#!/usr/bin/env python3"))
-	}
-	var re = regexp.MustCompile(`(?m)flush[(=]`)
-	if !re.Match(data) {
-		errors = append(errors, fmt.Sprintf("Please use print(..., flush=True)"))
+	if !isBinary(data) {
+		if string(data[:2]) != "#!" {
+			desc := fmt.Sprintf(
+				"Please use shebang (e.g. %s) as the first line of your script",
+				"#!/usr/bin/env python3",
+			)
+			errors = append(errors, desc)
+		}
+
+		// PYTHONUNBUFFERED=1 is set for python scripts, so no need to flush the buffer
+		if !bytes.Contains(data, []byte("#!/usr/bin/env python")) {
+			re := regexp.MustCompile(`(?m)flush[(=]`)
+			if !re.Match(data) {
+				desc := "Please flush the output, e.g. print(..., flush=True) in python"
+				errors = append(errors, desc)
+			}
+		}
 	}
 	return
 }

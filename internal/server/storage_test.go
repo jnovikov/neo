@@ -6,10 +6,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/boltdb/bolt"
-	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus"
+
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	bolt "go.etcd.io/bbolt"
 
 	neopb "neo/lib/genproto/neo"
 )
@@ -24,7 +27,12 @@ func testDB() (*bolt.DB, func()) {
 		panic(err)
 	}
 	return db, func() {
-		defer os.Remove(tmpFile.Name())
+		defer func(name string) {
+			err := os.Remove(name)
+			if err != nil {
+				logrus.Errorf("Error removing file: %v", err)
+			}
+		}(tmpFile.Name())
 		if err := db.Close(); err != nil {
 			panic(err)
 		}
@@ -42,12 +50,12 @@ func TestCachedStorage_States(t *testing.T) {
 		state := &neopb.ExploitState{
 			ExploitId: fmt.Sprintf("%d", i),
 			File:      &neopb.FileInfo{Uuid: "1"},
+			Config: &neopb.ExploitConfiguration{
+				Entrypoint: "./kek",
+				IsArchive:  false,
+			},
 		}
-		config := &neopb.ExploitConfiguration{
-			Entrypoint: "./kek",
-			IsArchive:  false,
-		}
-		if err := cs.UpdateExploitVersion(state, config); err != nil {
+		if _, err := cs.UpdateExploitVersion(state); err != nil {
 			t.Errorf("UpdateExploitVersion(): got unexpected error = %v", err)
 		}
 	}
@@ -67,46 +75,38 @@ func TestCachedStorage_UpdateStates(t *testing.T) {
 	state := &neopb.ExploitState{
 		ExploitId: "1",
 		File:      &neopb.FileInfo{Uuid: "1"},
+		Config: &neopb.ExploitConfiguration{
+			Entrypoint: "./kek",
+			IsArchive:  false,
+		},
 	}
-	config := &neopb.ExploitConfiguration{
-		Entrypoint: "./kek",
-		IsArchive:  false,
-	}
-	if err := cs.UpdateExploitVersion(state, config); err != nil {
+	if _, err := cs.UpdateExploitVersion(state); err != nil {
 		t.Fatalf("UpdateExploitVersion(): got unexpected error = %v", err)
 	}
 	if state.Version != 1 {
 		t.Errorf("UpdateExploitVersion(): wrong version returned: want: 1, got: %d", state.Version)
 	}
-	s, _ := cs.State(state.ExploitId)
+	s, _ := cs.GetState(state.ExploitId)
 	if diff := cmp.Diff(state, s, protocmp.Transform()); diff != "" {
 		t.Errorf("UpdateExploitVersion(): unexpected state diff: (-want +got):\n%s", diff)
-	}
-	c, _ := cs.Configuration(s)
-	if diff := cmp.Diff(config, c, protocmp.Transform()); diff != "" {
-		t.Errorf("UpdateExploitVersion(): unexpected config diff: (-want +got):\n%s", diff)
 	}
 	state = &neopb.ExploitState{
 		ExploitId: "1",
 		File:      &neopb.FileInfo{Uuid: "2"},
+		Config: &neopb.ExploitConfiguration{
+			Entrypoint: "./kek2",
+			IsArchive:  true,
+		},
 	}
-	config = &neopb.ExploitConfiguration{
-		Entrypoint: "./kek2",
-		IsArchive:  true,
-	}
-	if err := cs.UpdateExploitVersion(state, config); err != nil {
+	if _, err := cs.UpdateExploitVersion(state); err != nil {
 		t.Fatalf("UpdateExploitVersion(): got unexpected error = %v", err)
 	}
 	if state.Version != 2 {
 		t.Errorf("UpdateExploitVersion(): wrong version returned: want: 2, got: %d", state.Version)
 	}
-	s, _ = cs.State(state.ExploitId)
+	s, _ = cs.GetState(state.ExploitId)
 	if diff := cmp.Diff(state, s, protocmp.Transform()); diff != "" {
 		t.Errorf("UpdateExploitVersion(): unexpected state diff: (-want +got):\n%s", diff)
-	}
-	c, _ = cs.Configuration(s)
-	if diff := cmp.Diff(config, c, protocmp.Transform()); diff != "" {
-		t.Errorf("UpdateExploitVersion(): unexpected config diff: (-want +got):\n%s", diff)
 	}
 	if len(cs.States()) != 1 {
 		t.Errorf("States(): want: %d, got: %d", 1, len(cs.States()))
@@ -123,12 +123,12 @@ func TestCachedStorage_UpdateExploitVersionDB(t *testing.T) {
 	state := &neopb.ExploitState{
 		ExploitId: "1",
 		File:      &neopb.FileInfo{Uuid: "1"},
+		Config: &neopb.ExploitConfiguration{
+			Entrypoint: "./kek",
+			IsArchive:  false,
+		},
 	}
-	config := &neopb.ExploitConfiguration{
-		Entrypoint: "./kek",
-		IsArchive:  false,
-	}
-	if err := cs.UpdateExploitVersion(state, config); err != nil {
+	if _, err := cs.UpdateExploitVersion(state); err != nil {
 		t.Fatalf("UpdateExploitVersion(): got unexpected error = %v", err)
 	}
 	if err := cs.readDB(); err != nil {
@@ -136,9 +136,6 @@ func TestCachedStorage_UpdateExploitVersionDB(t *testing.T) {
 	}
 	if len(cs.States()) != 1 {
 		t.Errorf("States(): want: %d, got: %d", 1, len(cs.States()))
-	}
-	if len(cs.configCache) != 1 {
-		t.Errorf("configs: want: %d, got: %d", 1, len(cs.States()))
 	}
 }
 
@@ -149,10 +146,10 @@ func TestCachedStorage_readDB(t *testing.T) {
 	state := &neopb.ExploitState{
 		ExploitId: "1",
 		Version:   1,
-	}
-	config := &neopb.ExploitConfiguration{
-		Entrypoint: "./kek",
-		IsArchive:  false,
+		Config: &neopb.ExploitConfiguration{
+			Entrypoint: "./kek",
+			IsArchive:  false,
+		},
 	}
 	cs, err := NewStorage(db)
 	if err != nil {
@@ -166,15 +163,7 @@ func TestCachedStorage_readDB(t *testing.T) {
 		}
 		stateKey := []byte(fmt.Sprintf("%s:%d", state.ExploitId, state.Version))
 		if err := b.Put(stateKey, stateBytes); err != nil {
-			return err
-		}
-		b = tx.Bucket([]byte(configurationBucketKey))
-		confBytes, err := proto.Marshal(config)
-		if err != nil {
-			return err
-		}
-		if err := b.Put(stateKey, confBytes); err != nil {
-			return err
+			return fmt.Errorf("setting state in db: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -184,9 +173,6 @@ func TestCachedStorage_readDB(t *testing.T) {
 		t.Fatalf("readDB() failed with unexpected error = %v", err)
 	}
 	if diff := cmp.Diff(state, cs.stateCache["1"], protocmp.Transform()); diff != "" {
-		t.Errorf("readDB(): unexpected diff for exploit with id = 1")
-	}
-	if diff := cmp.Diff(config, cs.configCache["1:1"], protocmp.Transform()); diff != "" {
 		t.Errorf("readDB(): unexpected diff for exploit with id = 1")
 	}
 }

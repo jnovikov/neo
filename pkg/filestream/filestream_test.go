@@ -3,6 +3,7 @@ package filestream
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -15,14 +16,14 @@ import (
 type failedReadWriter struct {
 }
 
-var readWriteError = errors.New("test read write error")
+var errTestWrite = errors.New("test read write error")
 
 func (rw *failedReadWriter) Write(_ []byte) (n int, err error) {
-	return 0, readWriteError
+	return 0, errTestWrite
 }
 
 func (rw *failedReadWriter) Read(_ []byte) (n int, err error) {
-	return 0, readWriteError
+	return 0, errTestWrite
 }
 
 type mockUploadStream struct {
@@ -33,7 +34,7 @@ type mockUploadStream struct {
 func (ms *mockUploadStream) Send(s *neopb.FileStream) error {
 	ms.buf.Write(s.GetChunk())
 	if ms.withError {
-		return readWriteError
+		return errTestWrite
 	}
 	return nil
 }
@@ -49,11 +50,14 @@ func (ms *mockDownloadStream) Recv() (*neopb.FileStream, error) {
 		ms.chunkSize = chunkSize
 	}
 	if ms.withError {
-		return &neopb.FileStream{}, readWriteError
+		return nil, errTestWrite
 	}
 	b := make([]byte, ms.chunkSize)
 	n, err := ms.data.Read(b)
-	return &neopb.FileStream{Chunk: b[:n]}, err
+	if err != nil {
+		return nil, fmt.Errorf("reading stream content: %w", err)
+	}
+	return &neopb.FileStream{Chunk: b[:n]}, nil
 }
 
 func TestLoad(t *testing.T) {
@@ -73,17 +77,17 @@ func TestLoad(t *testing.T) {
 			reader: &failedReadWriter{},
 			stream: &mockUploadStream{withError: false},
 			want:   "",
-			err:    readWriteError,
+			err:    errTestWrite,
 		},
 		{
 			reader: strings.NewReader("somedata"),
 			stream: &mockUploadStream{withError: true},
 			want:   "somedata",
-			err:    readWriteError,
+			err:    errTestWrite,
 		},
 	} {
 		err := Load(tc.reader, tc.stream)
-		if tc.err != err {
+		if !errors.Is(err, tc.err) {
 			t.Errorf("Load(): got unexpected error = %v", err)
 		}
 		if diff := cmp.Diff(tc.want, tc.stream.buf.String()); diff != "" {
@@ -115,12 +119,15 @@ func TestSave(t *testing.T) {
 			writer: &strings.Builder{},
 			stream: &mockDownloadStream{data: strings.NewReader("abacaba"), withError: true},
 			want:   "",
-			err:    readWriteError,
+			err:    errTestWrite,
 		},
 	} {
 		err := Save(tc.stream, tc.writer)
-		if tc.err != err {
-			t.Errorf("Save(): got unexpected error = %v", err)
+		if tc.err == nil && err != nil {
+			t.Errorf("Save(): error was not expected = %v", err)
+		}
+		if tc.err != nil && !errors.Is(err, tc.err) {
+			t.Errorf("Save(): expected error %v, got = %v", tc.err, err)
 		}
 		if diff := cmp.Diff(tc.want, tc.writer.String()); diff != "" {
 			t.Errorf("Save() result mismatch (-want +got):\n%s", diff)

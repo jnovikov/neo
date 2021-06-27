@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "client",
@@ -29,10 +27,11 @@ func Execute(ctx context.Context) {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is config.yml)")
-	rootCmd.PersistentFlags().String("host", "", "server host")
-	rootCmd.PersistentFlags().BoolP("verbose", "v", true, "enable debug logging (default true)")
+	rootCmd.PersistentFlags().StringP("config", "c", "client_config.yml", "config file")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", true, "enable debug logging")
+	rootCmd.PersistentFlags().String("host", "127.0.0.1", "server host")
 
+	mustBindPersistent(rootCmd, "config")
 	mustBindPersistent(rootCmd, "host")
 	mustBindPersistent(rootCmd, "verbose")
 }
@@ -45,12 +44,8 @@ func mustBindPersistent(c *cobra.Command, flag string) {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.SetConfigName("config")
-	}
+	viper.SetConfigFile(viper.GetString("config"))
+	viper.SetConfigType("yaml")
 
 	viper.SetEnvPrefix("NEO")
 	viper.AutomaticEnv() // read in environment variables that match
